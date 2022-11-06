@@ -64,11 +64,12 @@ use bevy::{
     asset::{AssetEvent, Assets, Handle},
     ecs::{
         event::EventReader,
-        schedule::{ParallelSystemDescriptorCoercion, SystemLabel},
+        schedule::{IntoSystemDescriptor, SystemLabel},
         system::ResMut,
     },
     input::InputSystem,
     log,
+    prelude::Resource,
     render::{render_graph::RenderGraph, texture::Image, RenderApp, RenderStage},
     utils::HashMap,
     window::WindowId,
@@ -77,6 +78,7 @@ use egui_node::EguiNode;
 use render_systems::EguiTransforms;
 #[cfg(all(feature = "manage_clipboard", not(target_arch = "wasm32")))]
 use std::cell::{RefCell, RefMut};
+use std::ops::{Deref, DerefMut};
 #[cfg(all(feature = "manage_clipboard", not(target_arch = "wasm32")))]
 use thread_local::ThreadLocal;
 
@@ -84,7 +86,7 @@ use thread_local::ThreadLocal;
 pub struct EguiPlugin;
 
 /// A resource for storing global UI settings.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Resource)]
 pub struct EguiSettings {
     /// Global scale factor for egui widgets (`1.0` by default).
     ///
@@ -129,7 +131,7 @@ pub struct EguiInput {
 ///
 /// The resource is available only if `manage_clipboard` feature is enabled.
 #[cfg(feature = "manage_clipboard")]
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct EguiClipboard {
     #[cfg(not(target_arch = "wasm32"))]
     clipboard: ThreadLocal<Option<RefCell<Clipboard>>>,
@@ -217,7 +219,7 @@ pub struct EguiOutput {
 }
 
 /// A resource for storing `bevy_egui` context.
-#[derive(Clone)]
+#[derive(Clone, Resource)]
 pub struct EguiContext {
     ctx: HashMap<WindowId, egui::Context>,
     user_textures: HashMap<Handle<Image>, u64>,
@@ -429,14 +431,30 @@ pub enum EguiSystem {
     ProcessOutput,
 }
 
+/// an egui resource that is stored per every bevy window
+#[derive(Default, Resource)]
+pub struct PerWindow<T>(pub(crate) HashMap<WindowId, T>);
+impl<T> Deref for PerWindow<T> {
+    type Target = HashMap<WindowId, T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T> DerefMut for PerWindow<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl Plugin for EguiPlugin {
     fn build(&self, app: &mut App) {
         let world = &mut app.world;
         world.insert_resource(EguiSettings::default());
-        world.insert_resource(HashMap::<WindowId, EguiInput>::default());
-        world.insert_resource(HashMap::<WindowId, EguiOutput>::default());
-        world.insert_resource(HashMap::<WindowId, WindowSize>::default());
-        world.insert_resource(HashMap::<WindowId, EguiRenderOutput>::default());
+        world.insert_resource(PerWindow::<EguiInput>::default());
+        world.insert_resource(PerWindow::<EguiOutput>::default());
+        world.insert_resource(PerWindow::<WindowSize>::default());
+        world.insert_resource(PerWindow::<EguiRenderOutput>::default());
         world.insert_resource(EguiManagedTextures::default());
         #[cfg(feature = "manage_clipboard")]
         world.insert_resource(EguiClipboard::default());
@@ -490,7 +508,7 @@ impl Plugin for EguiPlugin {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub(crate) struct EguiManagedTextures(HashMap<(WindowId, u64), EguiManagedTexture>);
 
 pub(crate) struct EguiManagedTexture {
@@ -500,7 +518,7 @@ pub(crate) struct EguiManagedTexture {
 }
 
 fn update_egui_textures(
-    mut egui_render_output: ResMut<HashMap<WindowId, EguiRenderOutput>>,
+    mut egui_render_output: ResMut<PerWindow<EguiRenderOutput>>,
     mut egui_managed_textures: ResMut<EguiManagedTextures>,
     mut image_assets: ResMut<Assets<Image>>,
 ) {
@@ -553,7 +571,7 @@ fn update_egui_textures(
 
 fn free_egui_textures(
     mut egui_context: ResMut<EguiContext>,
-    mut egui_render_output: ResMut<HashMap<WindowId, EguiRenderOutput>>,
+    mut egui_render_output: ResMut<PerWindow<EguiRenderOutput>>,
     mut egui_managed_textures: ResMut<EguiManagedTextures>,
     mut image_assets: ResMut<Assets<Image>>,
     mut image_events: EventReader<AssetEvent<Image>>,
@@ -614,7 +632,9 @@ pub fn setup_pipeline(render_graph: &mut RenderGraph, config: RenderGraphConfig)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::{render::settings::WgpuSettings, winit::WinitPlugin, DefaultPlugins};
+    use bevy::{
+        prelude::PluginGroup, render::settings::WgpuSettings, winit::WinitPlugin, DefaultPlugins,
+    };
 
     #[test]
     fn test_readme_deps() {
@@ -628,7 +648,7 @@ mod tests {
                 backends: None,
                 ..Default::default()
             })
-            .add_plugins_with(DefaultPlugins, |group| group.disable::<WinitPlugin>())
+            .add_plugins(DefaultPlugins.build().disable::<WinitPlugin>())
             .add_plugin(EguiPlugin)
             .update();
     }

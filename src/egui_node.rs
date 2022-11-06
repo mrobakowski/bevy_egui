@@ -23,9 +23,10 @@ use bevy::{
         texture::{BevyDefault, Image},
         view::ExtractedWindows,
     },
-    window::WindowId,
+    window::WindowId, prelude::Resource,
 };
 
+#[derive(Resource)]
 pub struct EguiPipeline {
     pipeline: RenderPipeline,
 

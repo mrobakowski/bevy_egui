@@ -1,4 +1,4 @@
-use crate::{EguiContext, EguiInput, EguiOutput, EguiRenderOutput, EguiSettings, WindowSize};
+use crate::{EguiContext, EguiInput, EguiOutput, EguiRenderOutput, EguiSettings, WindowSize, PerWindow};
 #[cfg(feature = "open_url")]
 use bevy::log;
 use bevy::{
@@ -38,7 +38,7 @@ pub struct InputResources<'w, 's> {
     #[cfg(feature = "manage_clipboard")]
     egui_clipboard: Res<'w, crate::EguiClipboard>,
     keyboard_input: Res<'w, Input<KeyCode>>,
-    egui_input: ResMut<'w, HashMap<WindowId, EguiInput>>,
+    egui_input: ResMut<'w, PerWindow<EguiInput>>,
     #[system_param(ignore)]
     marker: PhantomData<&'s usize>,
 }
@@ -47,14 +47,14 @@ pub struct InputResources<'w, 's> {
 pub struct WindowResources<'w, 's> {
     focused_window: Local<'s, Option<WindowId>>,
     windows: ResMut<'w, Windows>,
-    window_sizes: ResMut<'w, HashMap<WindowId, WindowSize>>,
+    window_sizes: ResMut<'w, PerWindow<WindowSize>>,
     #[system_param(ignore)]
     _marker: PhantomData<&'s usize>,
 }
 
 pub fn init_contexts_on_startup(
     mut egui_context: ResMut<EguiContext>,
-    mut egui_input: ResMut<HashMap<WindowId, EguiInput>>,
+    mut egui_input: ResMut<PerWindow<EguiInput>>,
     mut window_resources: WindowResources,
     egui_settings: Res<EguiSettings>,
 ) {
@@ -331,7 +331,7 @@ fn update_window_contexts(
 
 pub fn begin_frame(
     mut egui_context: ResMut<EguiContext>,
-    mut egui_input: ResMut<HashMap<WindowId, EguiInput>>,
+    mut egui_input: ResMut<PerWindow<EguiInput>>,
 ) {
     for (id, ctx) in egui_context.ctx.iter_mut() {
         let raw_input = egui_input.get_mut(id).unwrap().raw_input.take();
@@ -344,8 +344,8 @@ pub fn process_output(
         EguiSettings,
     >,
     mut egui_context: ResMut<EguiContext>,
-    mut egui_output: ResMut<HashMap<WindowId, EguiOutput>>,
-    mut egui_render_output: ResMut<HashMap<WindowId, EguiRenderOutput>>,
+    mut egui_output: ResMut<PerWindow<EguiOutput>>,
+    mut egui_render_output: ResMut<PerWindow<EguiRenderOutput>>,
     #[cfg(feature = "manage_clipboard")] mut egui_clipboard: ResMut<crate::EguiClipboard>,
     mut windows: Option<ResMut<Windows>>,
     mut event: EventWriter<RequestRedraw>,
