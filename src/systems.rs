@@ -1,4 +1,6 @@
-use crate::{EguiContext, EguiInput, EguiOutput, EguiRenderOutput, EguiSettings, WindowSize, PerWindow};
+use crate::{
+    EguiContext, EguiInput, EguiOutput, EguiRenderOutput, EguiSettings, PerWindow, WindowSize,
+};
 #[cfg(feature = "open_url")]
 use bevy::log;
 use bevy::{
@@ -142,10 +144,7 @@ pub fn process_input(
         // that has been left.
         if cursor_left_window != Some(cursor_moved.id) {
             let scale_factor = egui_settings.scale_factor as f32;
-            let mut mouse_position: (f32, f32) = (cursor_moved.position / scale_factor).into();
-            mouse_position.1 = window_resources.window_sizes[&cursor_moved.id].height()
-                / scale_factor
-                - mouse_position.1;
+            let mouse_position: (f32, f32) = (cursor_moved.position / scale_factor).into();
             egui_context.mouse_position = Some((cursor_moved.id, mouse_position.into()));
             input_resources
                 .egui_input

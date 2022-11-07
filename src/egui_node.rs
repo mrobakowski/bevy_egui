@@ -5,6 +5,7 @@ use crate::render_systems::{
 use bevy::{
     core::cast_slice,
     ecs::world::{FromWorld, World},
+    prelude::Resource,
     render::{
         render_graph::{Node, NodeRunError, RenderGraphContext},
         render_resource::{
@@ -20,10 +21,10 @@ use bevy::{
             VertexStepMode,
         },
         renderer::{RenderContext, RenderDevice, RenderQueue},
-        texture::{BevyDefault, Image},
+        texture::Image,
         view::ExtractedWindows,
     },
-    window::WindowId, prelude::Resource,
+    window::WindowId,
 };
 
 #[derive(Resource)]
@@ -119,7 +120,7 @@ impl FromWorld for EguiPipeline {
                 module: &shader_module,
                 entry_point: "fs_main",
                 targets: &[Some(ColorTargetState {
-                    format: TextureFormat::bevy_default(),
+                    format: TextureFormat::Bgra8UnormSrgb,
                     blend: Some(BlendState {
                         color: BlendComponent {
                             src_factor: BlendFactor::One,
